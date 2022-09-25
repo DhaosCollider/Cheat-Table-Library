@@ -1,2 +1,2 @@
 # Cheat-Table-Library
-Frequently Used Functions
+My preferred functions for Cheat Engine.
