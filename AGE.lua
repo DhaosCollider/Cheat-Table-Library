@@ -1,4 +1,3 @@
--- 
 -- ARCGameEngine Original Author:
 -- sceawung (https://necocan-index.rick-addison.com/bbs/patio.cgi?read=64&ukey=1)
 
