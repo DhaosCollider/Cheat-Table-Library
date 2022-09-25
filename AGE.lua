@@ -10,9 +10,7 @@
 -- 2022/04/08 Fixed by Dhaos
 -- 2022/07/06 Added registerBitFields by Dhaos
 
-local Obj = {}
-
-function Obj.registerBitFields()
+local function registerBitFields()
     local bRot32 = function(i, n)
         n = n & 31
         return i >> n | i << (32 - n) & 0xFFFFFFFF
@@ -25,6 +23,16 @@ function Obj.registerBitFields()
         local c = bRot32(readInteger(a) ~ readInteger("AUX"), 0x0E) & ~(1 << i) | (b & 1) << i
         return unpack(dwordToByteTable(bRot32(c, -0x0E) ~ readInteger("AUX")))
         end, false)
+    end
+end
+
+local function Obj.register32bitOnChangeValueType()
+    local msg = "Failed to register the ARCGameEngine custom type."
+    local ct = registerCustomTypeAutoAssembler(customType) or error(msg)
+    local vt = MainForm.VarType
+    for i = vt.Items.Count - 1, 0, -1 do
+        local state = (vt.Items[i] == ct.name)
+        if state then vt.ItemIndex = i; vt.OnChange(); return end
     end
 end
 
@@ -77,20 +85,12 @@ local customType = [[
         ret
 ]]
 
-function Obj.register32bitOnChangeValueType()
-    local msg = "Failed to register the ARCGameEngine custom type."
-    local ct = registerCustomTypeAutoAssembler(customType) or error(msg)
-    local vt = MainForm.VarType
-    for i = vt.Items.Count - 1, 0, -1 do
-        local state = (vt.Items[i] == ct.name)
-        if state then vt.ItemIndex = i; vt.OnChange(); return end
-    end
-end
+local Obj = {}
 
 function Obj.onProcessSetup()
     assert((process == 'AGE.EXE'), MainForm.sbOpenProcess.hint..' (AGE.EXE)')
     if Obj.maskValue then return end
-    Obj.registerBitFields(); Obj.register32bitOnChangeValueType()
+    registerBitFields(); register32bitOnChangeValueType()
     local IAGEService = executeCodeEx(0, nil, "AGE.GetClassObject", "AGE:IAGEService")
     local COMethod = readPointer(readPointer(IAGEService) + 0x0C)
     local isModern = (readBytes(COMethod, 1) == 0xE9) and 8 or 0
