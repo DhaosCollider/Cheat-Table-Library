@@ -369,11 +369,11 @@ local function saveBasicObject(pointer, start, stop)
         if not readPointer(ptr) then break end
         Obj.getObjectData(ptr)
     end
-    Obj.Threadlist[#Obj.Threadlist] = nil
+    Obj.ThreadList[#Obj.ThreadList] = nil
 end
 
 local function saveBasicObjects()
-    Obj.Threadlist = {}
+    Obj.ThreadList = {}
     local size = targetIs64Bit() and 8 or 4
     for i = 0, 0x1000, size do
         local pointer = readPointer(Obj.GUObjectAddress + i)
@@ -384,8 +384,8 @@ local function saveBasicObjects()
         for j = 0, math.floor(size / (Obj.UObjectMul * Obj.perThread)) do
             local start = stop
             stop = stop + num
-            local index = #Obj.Threadlist + 1
-            Obj.Threadlist[index] = saveBasicObject(pointer, start, stop - 1)
+            local index = #Obj.ThreadList + 1
+            Obj.ThreadList[index] = saveBasicObject(pointer, start, stop - 1)
         end
     end
 end
@@ -825,7 +825,7 @@ function Obj.autoConfig()
     Obj.log(('autoConfig: %s %s = %X'):format(Data.Type, Data.FullName, Data.Address))
     local flag = {}
     assignUObject(pointer, Data, flag, size)
-    local str = 'Obj.UObject.ObjectId = 0x%X\nUObject.Class = 0x%X\nUObject.FNameIndex = 0x%X\nUObject.Outer = 0x%X\nUObject.super = 0x%X\nUObject.member = 0x%X\nObject.nextmember = 0x%X\nUObject.propsize = 0x%X\nUObject.Offset = 0x%X\nUObject.Property = 0x%X\nUObject.bitmask = 0x%X'
+    local str = 'UObject.ObjectId = 0x%X\nUObject.Class = 0x%X\nUObject.FNameIndex = 0x%X\nUObject.Outer = 0x%X\nUObject.super = 0x%X\nUObject.member = 0x%X\nUObject.nextmember = 0x%X\nUObject.propsize = 0x%X\nUObject.Offset = 0x%X\nUObject.Property = 0x%X\nUObject.bitmask = 0x%X'
     Obj.log(str:format(Obj.UObject.ObjectId, Obj.UObject.Class, Obj.UObject.FNameIndex,
     Obj.UObject.Outer, Obj.UObject.super, Obj.UObject.member, Obj.UObject.nextmember,
     Obj.UObject.propsize, Obj.UObject.Offset, Obj.UObject.Property, Obj.UObject.bitmask))
