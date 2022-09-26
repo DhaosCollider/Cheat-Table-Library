@@ -11,7 +11,7 @@
 ---------------------------------------------------------------------------------------------------
 local Obj = {}
 
-Obj.Sig = { -- Confirmed Build ver. 4.26/4.27
+Obj.Sig = { -- Confirmed Build ver.4.26/4.27
     Version       = '488D05xxxxxxxxC3CCCCCCCCCCCCCCCC40538D42',
     NamePoolData  = '488D05xxxxxxxxEBxx488D0DxxxxxxxxE8xxxxxxxxC605',
     GUObjectArray = '488D0DxxxxxxxxE8xxxxxxxx488D8DxxxxxxxxE8xxxxxxxx488D8D',
