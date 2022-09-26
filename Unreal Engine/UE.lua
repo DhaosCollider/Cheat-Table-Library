@@ -618,10 +618,11 @@ end
 ---------------------------------------------------------------------------------------------------
 local function checkObjectTable()
     local isPtr = readPointer(Obj.GUObjectAddress) and readPointer(Obj.FNamePool)
-    if not isPtr then return Obj.parseTable() end
+    if isPtr then return end
     local ptr = readPointer(readPointer(Obj.GUObjectAddress))
     local isTable = Obj.ObjectTable and Obj.ObjectTable[1] and Obj.FullNameList
-    if not (isTable and (Obj.ObjectTable[1].Address == ptr)) then return Obj.parseTable() end
+    if isTable and (Obj.ObjectTable[1].Address == ptr) then return end
+    return true
 end
 
 local function FindObject(pointer, start, stop, fullname, name)
@@ -955,7 +956,6 @@ local function getGUObjectAddress()
     if not readPointer(ptr) then ptr = readPointer(GUObjectArray + 0x10) end
     assert(readPointer(readPointer(ptr)))
     local isModule = inModule(readPointer(readPointer(readPointer(readPointer(ptr)))))
-    Obj.log(('GUObjectAddress = %X'):format(ptr))
     return isModule and ptr
 end
 
@@ -967,7 +967,7 @@ function Obj.getRegionSize(address)
 end
 
 function Obj.checkValue(address, size, value, typ, literal)
-    -- Require parseTables/getObjectData
+    -- Require parseTable/getObjectData
     local cvalue, tempvalue, value2, state = readBytes(address, size, true)
     if not cvalue then return false end
     if (type(value) == type('')) and string.find(value, '~') then
