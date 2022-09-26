@@ -90,7 +90,7 @@ function Obj.register32bitOnChangeValueType()
     end
 end
 
-function Obj.customTypeSetup()
+function Obj.CustomTypeSetup()
     assert((process == 'AGE.EXE'), MainForm.sbOpenProcess.hint..' (AGE.EXE)')
     if Obj.maskValue then return end
     Obj.registerBitFields(); Obj.register32bitOnChangeValueType()
