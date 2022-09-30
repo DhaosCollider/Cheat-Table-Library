@@ -46,6 +46,7 @@ Obj.ObjectTable  = Obj.ObjectTable or {}
 ---------------------------------------------------------------------------------------------------
 -- UE Structure Lookup functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function LoadStruct()
     for i = 1, #Obj.StructList do Obj.StructList[i]:addToGlobalStructureList() end
 end
@@ -250,22 +251,6 @@ local function createElementsForStruct(arg)
     end
 end
 
-function Obj.createStruct(...)
-    -- Require local functions
-    local arg = {...}
-    if arg[6] then checkLocalStruct(arg); return end
-    arg[6] = arg[6] and arg[6] or 0
-    arg[7] = arg[7] and arg[7] or ''
-    for i = 0, 10 do
-        if arg[3].Member then
-            Obj.log(arg[3].Type..' '..arg[3].FullName)
-            createElementsForStruct(arg)
-        end
-        if not arg[3].Super then break end
-        arg[3] = arg[3].Super
-    end
-end
-
 local function addUObjectElement(Struct, name)
     if not getElementByOffset(Struct, 0) then
         addElement(Struct, 0, 'VTable', vtPointer)
@@ -282,8 +267,8 @@ local function addUObjectElement(Struct, name)
     if not getElementByOffset(Struct, Obj.UObject.outer) then
         addElement(Struct, Obj.UObject.outer, 'Outer', vtPointer)
     end
-    if string.find(name, 'Function') and Obj.UObject.funct then
-        addElement(Struct, Obj.UObject.funct, 'Func', vtPointer)
+    if string.find(name, 'Function') and Obj.UObject.func then
+        addElement(Struct, Obj.UObject.func, 'Func', vtPointer)
     end
 end
 
@@ -326,6 +311,21 @@ local function getObjectDataInfo(address)
     local class = ObjectData.Class
     return ObjectData.Address, class, class.Name, class.FullName
 end
+-- gloval --
+function Obj.createStruct(...)
+    local arg = {...}
+    if arg[6] then checkLocalStruct(arg); return end
+    arg[6] = arg[6] and arg[6] or 0
+    arg[7] = arg[7] and arg[7] or ''
+    for i = 0, 10 do
+        if arg[3].Member then
+            Obj.log(arg[3].Type..' '..arg[3].FullName)
+            createElementsForStruct(arg)
+        end
+        if not arg[3].Super then break end
+        arg[3] = arg[3].Super
+    end
+end
 
 function Obj.StructureNameLookupCallback(address)
     local addr, class, name = getObjectDataInfo(address)
@@ -343,6 +343,7 @@ end
 ---------------------------------------------------------------------------------------------------
 -- saveBasicObjects functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function saveBasicObject(ThreadList, pointer, start, stop)
     for j = start, stop do
         local ptr = readPointer(pointer + j * Obj.UObjectMul)
@@ -369,7 +370,7 @@ local function saveBasicObjects()
         end
     end
 end
-
+-- gloval --
 function Obj.saveBasicObjects()
     local starttime = os.clock()
     Obj.FullNameList, Obj.IgnoreList, Obj.ObjectLists, Obj.ObjectTable = {}, {}, {}, {}
@@ -381,6 +382,7 @@ end
 ---------------------------------------------------------------------------------------------------
 -- getObjectData functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function getName1(pointer)
     local class = readPointer(pointer + Obj.UObject.class)
     local typ = readInteger(class + Obj.UObject.FNameIndex)
@@ -484,7 +486,7 @@ local function assignMember(pointer, ObjectData, size)
     end
 end
 
-local function assignFunction(j, i, ptr, pointers)
+local function assignUObjectFunction(j, i, ptr, pointers)
     if not (j == 0x30) then return pointers end
     for k = i - 4, Obj.UObject.objectId, -4 do
         pointers = readPointer(ptr + k)
@@ -492,9 +494,9 @@ local function assignFunction(j, i, ptr, pointers)
             local ext, opc = splitDisassembledString(disassemble(pointers))
             local find = string.find
             local isOpc = find(opc, 'mov') or find(opc, 'push') or find(opc, 'sub')
-            Obj.UObject.funct = isOpc and k or nil
-            if Obj.UObject.funct then
-                Obj.log(('UObject.funct = 0x%X'):format(Obj.UObject.funct))
+            Obj.UObject.func = isOpc and k or nil
+            if Obj.UObject.func then
+                Obj.log(('UObject.func = 0x%02X'):format(Obj.UObject.func))
             end
             break
         end
@@ -506,16 +508,16 @@ local function isModuleFunction(pointers, size, i, ptr)
     if not (readPointer(pointers) and inModule(pointers)) then return end
     for j = 0, 0x30, size do
         if not inModule(readPointer(pointers + j)) then break end
-        pointers = assignFunction(j, i, ptr, pointers)
+        pointers = assignUObjectFunction(j, i, ptr, pointers)
     end
 end
 
 local function findFunction(typ, str, ptr)
-    if Obj.UObject.funct then return end
+    if Obj.UObject.func then return end
     local size = targetIs64Bit() and 8 or 4
     Obj.log(typ..' '..str..string.format(' = %X', ptr))
     for i = Obj.UObject.objectId, 0x130, 4 do
-        if Obj.UObject.funct then break end
+        if Obj.UObject.func then break end
         local pointers = readPointer(ptr + i)
         isModuleFunction(pointers, size, i, ptr)
     end
@@ -538,6 +540,7 @@ local function assignEnum(pointer, ObjectData)
 end
 
 local function EInterpCurveMode(size, pointer)
+    Obj.log(string.format('%016X: EInterpCurveMode', pointer))
     for j = Obj.UObject.outer + size, 0x100, 4 do
         local ptr = readPointer(pointer + j)
         local CIM_Linear = Obj.checkValue(ptr, 0x50, 'CIM_Linear', 1)
@@ -570,12 +573,11 @@ local function assignObjectTypes(pointer, ObjectData, typ, name, class, str)
     local state = UObject.enumOffset and UObject.enumName and UObject.enumIndex and UObject.enumMul
     if not (state or Obj.IgnoreList[pointer]) and string.find(name,'EInterpCurveMode') then
         Obj.IgnoreList[pointer] = true
-        Obj.log(string.format('EInterpCurveMode = %X', pointer))
         EInterpCurveMode(size, pointer)
     end
     if string.find(ObjectData.Type, 'EnumProperty') then assignEnum(pointer, ObjectData) end
 end
-
+-- gloval --
 function Obj.getObjectData(pointer)
     -- Requre autoConfig/saveBasicObjects
     if not readPointer(pointer) then return end
@@ -600,6 +602,7 @@ end
 ---------------------------------------------------------------------------------------------------
 -- findStaticObject functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function FindObject(pointer, start, stop, fullname, name)
     for j = start, stop do
         if Obj.staticObjectFoundAddress then break end
@@ -626,7 +629,7 @@ local function getFullNameListAddress(fullname, name, size)
         end
     end
 end
-
+-- gloval --
 function Obj.findStaticObject(fullname, name)
     if fullname then fullname = fullname:lower() end
     if Obj.FullNameList[fullname] then return Obj.FullNameList[fullname].Address end
@@ -636,20 +639,13 @@ end
 ---------------------------------------------------------------------------------------------------
 -- autoConfig functions
 ---------------------------------------------------------------------------------------------------
-local function UObjectInitialize()
-    local sub = targetIs64Bit() and 0 or 4
-    Obj.UObject = {}
-    Obj.UObject.objectId   = 0x0C - sub
-    Obj.UObject.class      = 0x10 - sub
-    Obj.UObject.FNameIndex = 0x18 - (sub * 2)
-    Obj.UObject.outer      = 0x20 - (sub * 2)
-end
-
+-- local --
 local function assignUObjectSuper(pointer, Data, flag, i)
     if not Data then return end
     Obj.log(('getObjectData: %s %s = %X'):format(Data.Type, Data.FullName, Data.Address))
-    if not string.find(Data.FullName, 'Engine.'..'Engine') or flag[1] then return end
+    if not Data.FullName:find('Engine.'..'Engine') or flag[1] then return end
     Obj.UObject.super, pointer[1], flag[1] = i, pointer[2], true
+    Obj.log(('UObject.super = 0x%02X'):format(Obj.UObject.super))
 end
 
 local function assignUObjectNextMember(pointer, Data, flag, j)
@@ -661,14 +657,20 @@ local function assignUObjectNextMember(pointer, Data, flag, j)
         local isState    = Data and string.find(Data.Type, 'State')
         local isCore     = Data and string.find(Data.FullName, 'Core')
         if isCore or not (isProperty or isFunction or isSStruct or isState) then break end
-        Obj.log(('2. 0x%02X %s %s = %X'):format(j, Data.Type, Data.FullName, pointer[3]))
-        if (k == 1) then Obj.UObject.nextMember, flag[2] = j, true; break end
+        local str = 'assignUObjectNextMember (0x%02X): %s %s = %X'
+        Obj.log(str:format(j, Data.Type, Data.FullName, pointer[3]))
+        if (k == 1) then
+            Obj.UObject.nextMember = j
+            Obj.log(('UObject.nextMember = 0x%02X'):format(Obj.UObject.nextMember))
+            flag[2] = true
+            break
+        end
         pointer[3] = readPointer(pointer[3] + j)
     end
 end
 
 local function findUObjectNextMember(pointer, Data, flag, size)
-    Obj.log(('1. %s %s = %X'):format(Data.Type, Data.FullName, pointer[2]))
+    Obj.log(('findUObjectNextMember: %s %s = %X'):format(Data.Type, Data.FullName, pointer[2]))
     for j = size, 0x100, 4 do
         pointer[3] = readPointer(pointer[2] + j)
         assignUObjectNextMember(pointer, Data, flag, j)
@@ -684,7 +686,21 @@ local function assignUObjectMember(pointer, Data, flag, size, i)
     local isCore = Data.FullName and string.find(Data.FullName, 'Core')
     if (isProp or isFunc or isEnum) and not isCore then
         findUObjectNextMember(pointer, Data, flag, size)
-        if flag[2] then Obj.UObject.member = i end
+        if flag[2] then
+            Obj.UObject.member = i
+            Obj.log(('UObject.member = 0x%02X'):format(Obj.UObject.member))
+        end
+    end
+end
+
+local function assignUObjectSuperAndMember(pointer, size)
+    local flag = {}
+    for i = Obj.UObject.outer + size, 0x100, 4 do
+        pointer[2] = readPointer(pointer[1] + i)
+        local Data = Obj.getObjectData(pointer[2])
+        assignUObjectSuper(pointer, Data, flag, i)
+        assignUObjectMember(pointer, Data, flag, size, i)
+        if flag[1] and flag[2] then return Data end
     end
 end
 
@@ -705,7 +721,11 @@ local function assignUObjectProperty(pointer, Data, size)
         Data = Obj.getObjectData(readPointer(pointer[3] + i))
         local isClass = Data and string.find(Data.Type, 'Class')
         local isCore  = Data and string.find(Data.FullName, 'Core')
-        if isClass and not isCore then Obj.UObject.property = i break end
+        if isClass and not isCore then
+            Obj.UObject.property = i
+            Obj.log(('UObject.property = 0x%02X'):format(Obj.UObject.property))
+            break
+        end
     end
 end
 
@@ -728,7 +748,11 @@ local function assignUObjectOffset(pointer, varsize, size)
         local val1, val2 = readSmallInteger(pointer[3] + i), readSmallInteger(pointer[2] + i)
         local isValid = (val1 + varsize == val2)
         Obj.log(string.format('checkUObjectOffset: 0x%X (%s)', i, tostring(isValid)))
-        if isValid then Obj.UObject.offset = i; break end
+        if isValid then
+            Obj.UObject.offset = i
+            Obj.log(('UObject.offset = 0x%02X'):format(Obj.UObject.offset))
+            break
+        end
     end
 end
 
@@ -755,22 +779,19 @@ local function assignUObjectBitMask(pointer, Data)
         local val1, val2 = readBytes(pointer[3] + i), readBytes(pointer[4] + i)
         local isVal1 = (val1 == 1) or (val1 % 2 == 0)
         local isVal2 = (val2 == 1) or (val2 % 2 == 0)
-        if isVal1 and isVal2 and (val1 < val2) then Obj.UObject.bitMask = i; break end
+        if isVal1 and isVal2 and (val1 < val2) then
+            Obj.UObject.bitMask = i
+            Obj.log(('UObject.bitMask = 0x%02X'):format(Obj.UObject.bitMask))
+            break
+        end
     end
 end
 
-local function assignUObject(pointer, Data, size)
-    local UObject, flag = Obj.UObject, {}
-    for i = UObject.outer + size, 0x100, 4 do
-        pointer[2] = readPointer(pointer[1] + i)
-        Data = Obj.getObjectData(pointer[2])
-        assignUObjectSuper(pointer, Data, flag, i)
-        assignUObjectMember(pointer, Data, flag, size, i)
-        if flag[1] and flag[2] then break end
-    end
+local function assignUObject(pointer, size)
+    local Data = assignUObjectSuperAndMember(pointer, size)
     findObjectPropertyPointer(pointer, Data)
     local sizeTbl = {[0] = 1, [2] = 4, [3] = 8, [4] = 4, [12] = size}
-    local varsize = sizeTbl[Obj.Type[Data.Type]]
+    local UObject, varsize = Obj.UObject, sizeTbl[Obj.Type[Data.Type]]
     UObject.propSize = Obj.checkValue(pointer[3] + UObject.outer, 0x100, varsize, 2) - pointer[3]
     assignUObjectProperty(pointer, Data, size)
     findObjectOrFloatPointer(pointer, Data)
@@ -783,33 +804,25 @@ local function assignUObject(pointer, Data, size)
     if Data then assignUObjectBitMask(pointer, Data) end
     if not UObject.bitMask then UObject.bitMask = UObject.property end
 end
-
+-- gloval --
 function Obj.autoConfig()
-    UObjectInitialize()
-    local size = targetIs64Bit() and 8 or 4
-    local pointer = {}
+    Obj.UObject = {}
+    local UObject = Obj.UObject
+    local sub = targetIs64Bit() and 0 or 4
+    UObject.objectId   = 0x0C - sub
+    UObject.class      = 0x10 - sub
+    UObject.FNameIndex = 0x18 - (sub * 2)
+    UObject.outer      = 0x20 - (sub * 2)
+    local str = 'UObject.objectId   = 0x%02X\nUObject.class      = 0x%02X\nUObject.FNameIndex = 0x%02X\nUObject.outer      = 0x%02X'
+    Obj.log(str:format(UObject.objectId, UObject.class, UObject.FNameIndex, UObject.outer))
+    local pointer, size = {}, targetIs64Bit() and 8 or 4
     pointer[1] = Obj.findStaticObject('/Script/Engine.GameEngine')
-    local Data = Obj.getObjectData(pointer[1])
-    Obj.log(('autoConfig: %s %s = %X'):format(Data.Type, Data.FullName, Data.Address))
-    assignUObject(pointer, Data, size)
-    local str = 
-    'UObject.objectId   = 0x%02X\nUObject.class      = 0x%02X\nUObject.FNameIndex = 0x%02X\nUObject.outer      = 0x%02X\nUObject.super      = 0x%02X\nUObject.member     = 0x%02X\nUObject.nextMember = 0x%02X\nUObject.propSize   = 0x%02X\nUObject.offset     = 0x%02X\nUObject.property   = 0x%02X\nUObject.bitMask    = 0x%02X'
-    Obj.log(str:format(Obj.UObject.objectId, Obj.UObject.class, Obj.UObject.FNameIndex,
-    Obj.UObject.outer, Obj.UObject.super, Obj.UObject.member, Obj.UObject.nextMember,
-    Obj.UObject.propSize, Obj.UObject.offset, Obj.UObject.property, Obj.UObject.bitMask))
-end
----------------------------------------------------------------------------------------------------
--- getVersionFromFile
----------------------------------------------------------------------------------------------------
-function Obj.getVersionFromFile()
-    local fileVer, info = getFileVersion(enumModules()[1].PathToFile)
-    local ver = ('%s.%s'):format(info.major, ('%02d'):format(info.minor))
-    Obj.log('getVersionFromFile: '..ver)
-    return tonumber(ver)
+    assignUObject(pointer, size)
 end
 ---------------------------------------------------------------------------------------------------
 -- getFNameString functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function getStringOffset(id, index, ptr, le, widechar)
     if not ((id > 0) and (id < 7) and (le >= 10) and (le <= 15)) then return end
     local length = (widechar and le * 2 or le) - 1
@@ -819,7 +832,7 @@ local function getStringOffset(id, index, ptr, le, widechar)
         if isByte then return k end
     end
 end
-
+-- gloval --
 function Obj.getFNameString(FName, IndexOnly)
     if (Obj.version < 4.23) then error(Obj.log('UE.ver < 4.23')) end
     if not FName then return end
@@ -836,7 +849,7 @@ function Obj.getFNameString(FName, IndexOnly)
     Obj.stringOffset = Obj.stringOffset or getStringOffset(id, index, ptr, le, widechar)
     if not Obj.stringOffset then return end
     le = (widechar and le * 2 or le) - 1
-    local str = readString(ptr + index + Obj.stringOffset, le, widechar)
+    local str = readString(ptr + index + Obj.stringOffset, le , widechar)
     if not str then return end
     if (num > 0) then return str..'_'..num - 1 end
     Obj.FNameList[id] = str
@@ -845,6 +858,7 @@ end
 ---------------------------------------------------------------------------------------------------
  -- parseTables functions
 ---------------------------------------------------------------------------------------------------
+-- local --
 local function findString(namestr, start, stop)
     local acclen = 0
     for i = start, stop do
@@ -865,9 +879,9 @@ local function findStringFName(namestr)
     return result
 end
 
-local function parseFNamePool()
+local function parseFNamePool(NamePoolData)
     Obj.FNameList, Obj.FNameRegions = {}, {}
-    Obj.FNamePool = getAddress('NamePoolData') + 0x10
+    Obj.FNamePool = NamePoolData + 0x10
     local size = targetIs64Bit() and 8 or 4
     for i = 0, 0x1000, size do
         local ptr = readPointer(Obj.FNamePool + i * size)
@@ -876,19 +890,17 @@ local function parseFNamePool()
     end
     Obj.log('findStringFName: /Script/CoreUObject')
     assert(findStringFName('/Script/CoreUObject'))
-    Obj.log('FNamePool parsed.\n')
 end
 
-local function getGUObjectAddress()
-    parseFNamePool()
-    local GUObjectArray = getAddress('GUObjectArray')
+local function getGUObjectAddress(NamePoolData, GUObjectArray)
+    parseFNamePool(NamePoolData)
     local ptr = readPointer(GUObjectArray)
     if not readPointer(ptr) then ptr = readPointer(GUObjectArray + 0x10) end
     assert(readPointer(readPointer(ptr)))
     local isModule = inModule(readPointer(readPointer(readPointer(readPointer(ptr)))))
     return isModule and ptr
 end
-
+-- gloval --
 function Obj.getRegionSize(address)
     local tbl = enumMemoryRegions()
     for i= #tbl, 1, -1 do
@@ -940,8 +952,8 @@ function Obj.checkValue(address, size, value, typ, literal)
     end
 end
 
-function Obj.parseTable()
-    Obj.GUObjectAddress = getGUObjectAddress()
+function Obj.parseTable(NamePoolData, GUObjectArray)
+    Obj.GUObjectAddress = getGUObjectAddress(NamePoolData, GUObjectArray)
     for o = 4, 8 * 4, 4 do
         for k = 0, 10 * o, o do
             local ptr = readPointer(readPointer(Obj.GUObjectAddress) + k)
@@ -950,8 +962,18 @@ function Obj.parseTable()
             if Obj.UObjectMul then break end
         end
     end
+    Obj.log('FNamePool/GUObjectArray parsed.\n')
 end
-
+---------------------------------------------------------------------------------------------------
+-- getVersionFromFile
+---------------------------------------------------------------------------------------------------
+function Obj.getVersionFromFile()
+    local fileVer, info = getFileVersion(enumModules()[1].PathToFile)
+    local ver = ('%s.%s'):format(info.major, ('%02d'):format(info.minor))
+    Obj.log('getVersionFromFile: '..ver..'.'..info.release)
+    return tonumber(ver)
+end
+---------------------------------------------------------------------------------------------------
 function Obj.log(...)
     return Obj.isDebug and print(...)
 end
