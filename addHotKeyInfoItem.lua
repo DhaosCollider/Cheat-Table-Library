@@ -5,7 +5,7 @@ local function assignListAndTable(mr, list, tbl)
         if str then list.add(str); tbl[#tbl + 1] = mr.index end
     end
 end
-
+---------------------------------------------------------------------------------------------------
 local function getIndex()
     local al, hl, il = getAddressList(), createStringList(), {}
     for i = 0, al.count - 1 do assignListAndTable(al[i], hl, il) end
