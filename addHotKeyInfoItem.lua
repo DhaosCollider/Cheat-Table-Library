@@ -19,7 +19,7 @@ local function viewSetHotkeys()
     if not index then return end
     local al, mf = getAddressList(), getMainForm()
     al.setSelectedRecord(al[index])
-    MainForm.SetHotkey1.doClick()
+    mf.SetHotkey1.doClick()
 end
 ---------------------------------------------------------------------------------------------------
 local function cleanHotkeys(mr)
