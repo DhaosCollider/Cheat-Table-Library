@@ -1,10 +1,13 @@
 -- Released Starter.lua under the MIT license
 -- Copyright (c) 2022 DhaosCollider
 -- https://opensource.org/licenses/mit-license.php
-
+---------------------------------------------------------------------------------------------------
 local Obj = {}
-
+---------------------------------------------------------------------------------------------------
 function Obj.onEnable()
+    if not readInteger(process) then synchronize(MainForm.sbOpenProcess.doClick) end
+    assert(readInteger(process), MainForm.sbOpenProcess.hint)
+    Obj.log('The table has %d options.', Obj.getTableOptionCount())
     AddressList.rebuildDescriptionCache()
     local al, msg = AddressList.getMemoryRecordByID(777), "Activate table settings."
     synchronize(function() al.description = "<< "..msg end)
@@ -18,7 +21,7 @@ function Obj.onEnable()
         al.description, al.color = '>> '..setting.description, Obj.enabledColor
     end)
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.onDisable()
     AddressList.rebuildDescriptionCache()
     local al, msg = AddressList.getMemoryRecordByID(777), "Initialize table settings."
@@ -31,7 +34,7 @@ function Obj.onDisable()
         al.description, al.color = "<< Check the box.", Obj.disabledColor
     end)
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.initializeTableSettings()
     local state = true
     local setting = AddressList.getMemoryRecordByID(10000)
@@ -51,24 +54,25 @@ function Obj.initializeTableSettings()
     setting.active = false
     return state
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.recommandInit(sender)
     -- Thanks: https://forum.cheatengine.org/viewtopic.php?t=602700
     local al = AddressList.getMemoryRecordByID(777)
+    if not al then Obj.onClose(sender); return caFree end
     if not al.active then Obj.onClose(sender); return caFree end
     local msg = "Initializing the table settings is highly recommended.\nInitialize table settings?"
     local ret = messageDialog(msg, 3, 0, 1)
     if not (ret == mrYes) then Obj.onClose(sender); return caFree end
     al.active = false
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.getTForm(name)
     for i = 0, getFormCount() - 1 do
         local TForm = getForm(i)
         if (TForm.className == name) then return TForm end
     end
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.removeAdvOptions()
     local ao = Obj.getTForm("TAdvancedOptions")
     if not ao or (ao.LvCodelist.Items.count == 0) then return end
@@ -77,7 +81,7 @@ function Obj.removeAdvOptions()
     ao.LvCodelist.Items.clear()
     return Obj.log("Removed Advanced options.\n")
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.removeStructures()
     local sc = getStructureCount()
     if (sc == 0) then return end
@@ -89,34 +93,31 @@ function Obj.removeStructures()
     end
     return Obj.log("Removed Dissect data/structures.\n")
 end
-
-function Obj.autoCompactMode(state)
-    Obj.publicMemrecUpdate()
-    local mr = AddressList["Cheat Engine: Compact Mode"]
-    if not mr then return end
-    mr.active = not Obj.isDebug and state
-end
-
-function Obj.publicMemrecUpdate()
-    local mc = Obj.publicMemrecCount()
-    local isUpdate = not (Obj.saveCount == mc)
-    Obj.saveCount = isUpdate and mc or Obj.saveCount
-    return isUpdate and Obj.log(Obj.saveCount.." memory records have been published.\n")
-end
-
-function Obj.publicMemrecCount()
+---------------------------------------------------------------------------------------------------
+function Obj.getTableOptionCount()
     local setting = AddressList.getMemoryRecordByID(10000)
     if not setting then return end
-    local setEnd = setting[setting.count - 1]
-    return (AddressList.count - 1) - (setEnd.index - (setting.index - 1))
+    local count = 0
+    for i = 1, setting.index - 2 do
+        local al = AddressList[i]
+        local isHeader = al.isAddressGroupHeader or al.isGroupHeader
+        if not isHeader then count = count + 1 end
+    end
+    return count
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.getCheatTableName(path)
     return path and path:match("\\([^\\]+)$") or 'Cheat Table'
 end
-
-function Obj.log(...)
-    return Obj.isDebug and print(...)
+---------------------------------------------------------------------------------------------------
+function Obj.onLoad(state)
+    if not state then return end
+    local al = AddressList['CT: Load Active Scripts']
+    al.active = (messageDialog('Load active scripts?', 3, 0, 1) == mrYes)
 end
-
+---------------------------------------------------------------------------------------------------
+function Obj.log(...)
+    return Obj.isDebug and printf(...)
+end
+---------------------------------------------------------------------------------------------------
 return Obj
