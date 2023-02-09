@@ -18,12 +18,14 @@ local function activateTableSettings(author)
         local state = Obj.multiCustomScan(tbl)
         local msg = state and "Available" or "Unavailable"
         Obj.log(msg..": "..al.description)
+        Obj.log('-------------------------------------------------------------------------------')
         synchronize(function() al.color = state and Obj.enabledColor or Obj.disabledColor end)
         ::continue::
     end
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.onEnable(...)
+    Obj.log('-------------------------------------------------------------------------------')
     local author = {...}
     for i = 1, #author do activateTableSettings(author[i]) end
 end
@@ -39,7 +41,7 @@ local function deactivateTableSettings(author)
         ::continue::
     end
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.onDisable(...)
     local author = {...}
     for i = 1, #author do deactivateTableSettings(author[i]) end
@@ -59,7 +61,7 @@ local function memScan(strAOB, start, size)
     for i = 0, fc - 1 do Result.add(fl.getAddress(i)) end
     ms.destroy(); fl.destroy(); return Result
 end
-
+---------------------------------------------------------------------------------------------------
 local function customScan(strSymbol, strAOB, selectNum, start, size)
     local Result = memScan(strAOB, start, size)
     if not Result then Obj.log("Error: "..strSymbol.." AOB not found"); return end
@@ -68,13 +70,13 @@ local function customScan(strSymbol, strAOB, selectNum, start, size)
     local address = Result[selectNum - 1]
     Result.destroy(); return address
 end
-
+---------------------------------------------------------------------------------------------------
 local function aobScanRegion(SymbolName, StartAddress, StopAddress, AOBString)
     local str = 'aobScanRegion(%s, %X, %X, %s)\nregistersymbol(%s)'
     local script = str:format(SymbolName, StartAddress, StopAddress, AOBString, SymbolName)
     return autoAssemble(script)
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.multiCustomScan(args)
     local isAvailable = true
     for i = 1, #args do
@@ -93,7 +95,7 @@ end
 function Obj.enableMemoryRecords(memoryRecordTable)
     for i = 1, #memoryRecordTable do
         local mr = memoryRecordTable[i]
-        if not mr then Obj.log("Error: mr['"..i.."'] not found"); goto continue end
+        if not mr then Obj.log("enableMemoryRecords mr['"..i.."'] not found"); goto continue end
         mr.active = true
         local msg = mr.active and "Enabled" or "Failed"
         Obj.log(msg..": "..mr.description)
@@ -105,7 +107,7 @@ end
 function Obj.disableMemoryRecords(memoryRecordTable)
     for i = #memoryRecordTable, 1, -1 do
         local mr = memoryRecordTable[i]
-        if not mr then Obj.log("Error: mr['"..i.."'] not found"); goto continue end
+        if not mr then Obj.log("disableMemoryRecords mr['"..i.."'] not found"); goto continue end
         mr.active = false
         local msg = not mr.active and "Disabled" or "Failed"
         Obj.log(msg..": "..mr.description)
@@ -134,7 +136,7 @@ local function assignToSectionTable(sectionTable, base)
     end
     return sectionTable
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.createSectionTable(moduleNameOrAddress)
     local sectionTable = {}
     local addr = getAddress(moduleNameOrAddress)
@@ -169,7 +171,7 @@ local function findMethodBySignature(className, methodName, signature)
         if sig:match(signature) then return specific.method end
     end
 end
-
+---------------------------------------------------------------------------------------------------
 function Obj.getJitRegion(className, methodName, signature)
     local sig = signature and findMethodBySignature(className, methodName, signature)
     local id  = sig or mono_findMethod("", className, methodName)
@@ -185,8 +187,18 @@ function Obj.labelAndSymbol(parameters, syntaxcheck)
     return 'label('..parameters..')\r\nregistersymbol('..parameters..')'
 end
 ---------------------------------------------------------------------------------------------------
+function Obj.loadScript(activeList)
+    if (#activeList == 0) then error(messageDialog('No active scripts.', 2, 2)) end
+    local str = '{$lua}\nif syntaxcheck then return end\n\n[ENABLE]\n\nassert(AddressList.getMemoryRecordByID(10000).active)\n\nlocal mr = {\n'
+    for i = 1, #activeList do
+        local al = ('    AddressList.getMemoryRecordByID(%d)'):format(activeList[i])
+        str = (i == #activeList) and str..al..'\n}\n\n' or str..al..',\n'
+    end
+    return str.."Register.enableMemoryRecords(mr); speakEnglish('Executed'); return 'nop'\n\n[DISABLE]"
+end
+---------------------------------------------------------------------------------------------------
 function Obj.log(...)
-    return Obj.isDebug and print(...)
+    return Obj.isDebug and printf(...)
 end
 ---------------------------------------------------------------------------------------------------
 return Obj
