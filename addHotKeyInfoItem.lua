@@ -1,3 +1,6 @@
+---------------------------------------------------------------------------------------------------
+-- addHotKeyInfoItem functions
+---------------------------------------------------------------------------------------------------
 local function assignListAndTable(mr, list, tbl)
     if not (0 < mr.HotkeyCount) then return end
     for i = 0, mr.HotkeyCount - 1 do
@@ -18,8 +21,7 @@ local function viewSetHotkeys()
     local index = getIndex()
     if not index then return end
     local al, mf = getAddressList(), getMainForm()
-    al.setSelectedRecord(al[index])
-    mf.SetHotkey1.doClick()
+    al.setSelectedRecord(al[index]); mf.SetHotkey1.doClick()
 end
 ---------------------------------------------------------------------------------------------------
 local function cleanHotkeys(mr)
@@ -54,7 +56,7 @@ local function addCleanAllMenu(Item)
     CleanAllMenu.onClick = cleanAllHotkeys
 end
 ---------------------------------------------------------------------------------------------------
-local function addHotkeys()
+local function addHotkeyInfoItem()
     if findHotkeyInfoItem('&Hotkeys') then return end
     local mf = getMainForm()
     local HotKeyInfoItem = createMenuItem(mf.Menu.Items)
@@ -63,4 +65,4 @@ local function addHotkeys()
     addListViewMenu(HotKeyInfoItem); addCleanAllMenu(HotKeyInfoItem)
 end
 ---------------------------------------------------------------------------------------------------
-return addHotkeys()
+return addHotkeyInfoItem()
