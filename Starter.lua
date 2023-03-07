@@ -4,55 +4,33 @@
 ---------------------------------------------------------------------------------------------------
 local Obj = {}
 ---------------------------------------------------------------------------------------------------
-function Obj.onEnable()
-    if not readInteger(process) then synchronize(MainForm.sbOpenProcess.doClick) end
-    assert(readInteger(process), MainForm.sbOpenProcess.hint)
-    Obj.log('The table has %d options.', Obj.getTableOptionCount())
+function Obj.onEnable(MainForm, AddressList, process)
+    local success = readInteger(process) or pcall(synchronize, MainForm.sbOpenProcess.doClick)
+    local startTime = assert(success, 'Error: MainForm.sbOpenProcess.doClick') and os.clock()
+    Obj.log(('The table has %d options.'):format(Obj.getTableOptionCount(AddressList)))
     AddressList.rebuildDescriptionCache()
-    local al, msg = AddressList.getMemoryRecordByID(777), "Activate table settings."
-    synchronize(function() al.description = "<< "..msg end)
+    local mr, msg = AddressList.getMemoryRecordByID(777), "Activate table settings."
+    mr.description = "<< "..msg
     Obj.log(msg.."\n")
     local setting = AddressList.getMemoryRecordByID(10000)
     setting.active = true
-    msg = setting.active and "completed." or "unfinished."
-    local sec = (' (%.2fs)'):format(al.asyncProcessingTime / 1000)
-    Obj.log(setting.description.." Setup "..msg..sec.."\n")
-    synchronize(function()
-        al.description, al.color = '>> '..setting.description, Obj.enabledColor
-    end)
+    local sec = (' (%.2fs)'):format(os.clock() - startTime)
+    local isActive = setting.active and "completed." or "unfinished."
+    Obj.log(setting.description.." Setup "..isActive..sec.."\n")
+    mr.description, mr.color = '>> '..setting.description, Obj.enabledColor
 end
 ---------------------------------------------------------------------------------------------------
-function Obj.onDisable()
+function Obj.onDisable(AddressList)
     AddressList.rebuildDescriptionCache()
-    local al, msg = AddressList.getMemoryRecordByID(777), "Initialize table settings."
-    synchronize(function() al.description = ">> "..msg end)
-    Obj.log(msg.."\n"); Obj.removeAdvOptions(); Obj.removeStructures()
-    msg = Obj.initializeTableSettings() and "completed." or "unfinished."
+    local al, info = AddressList.getMemoryRecordByID(777), "Initialize table settings."
+    al.description = ">> "..info
+    Obj.log(info.."\n"); Obj.removeAdvOptions(); Obj.removeStructures()
+    local setting = AddressList.getMemoryRecordByID(10000)
+    setting.active = false
+    local msg = not setting.active and "completed." or "unfinished."
     local sec = (' (%.2fs)'):format(al.asyncProcessingTime / 1000)
     Obj.log("Initialization "..msg..sec.."\n")
-    synchronize(function()
-        al.description, al.color = "<< Check the box.", Obj.disabledColor
-    end)
-end
----------------------------------------------------------------------------------------------------
-function Obj.initializeTableSettings()
-    local state = true
-    local setting = AddressList.getMemoryRecordByID(10000)
-    local setEnd  = setting[setting.count - 1]
-    if not (setting and setEnd) then setting.active = false return end
-    for i = 1, AddressList.count - 1 do
-        local al = AddressList[i]
-        if not (al.type == vtAutoAssembler) then goto continue end
-        local startIndex, endIndex = setting.index - 1, setEnd.index
-        if not ((al.index < startIndex) or (al.index > endIndex)) then goto continue end
-        al.active = false
-        local str = al.active and "Failed" or "Disabled"
-        Obj.log(str..": "..al.description)
-        if al.active then state = false end
-        ::continue::
-    end
-    setting.active = false
-    return state
+    al.description, al.color = "<< Check the box.", Obj.disabledColor
 end
 ---------------------------------------------------------------------------------------------------
 function Obj.recommandInit(sender)
@@ -94,7 +72,7 @@ function Obj.removeStructures()
     return Obj.log("Removed Dissect data/structures.\n")
 end
 ---------------------------------------------------------------------------------------------------
-function Obj.getTableOptionCount()
+function Obj.getTableOptionCount(AddressList)
     local setting = AddressList.getMemoryRecordByID(10000)
     if not setting then return end
     local count = 0
@@ -110,14 +88,12 @@ function Obj.getCheatTableName(path)
     return path and path:match("\\([^\\]+)$") or 'Cheat Table'
 end
 ---------------------------------------------------------------------------------------------------
-function Obj.onLoad(state)
-    if not state then return end
-    local al = AddressList['CT: Load Active Scripts']
-    al.active = (messageDialog('Load active scripts?', 3, 0, 1) == mrYes)
+function Obj.onLoad(AddressList, description)
+    if not AddressList[description].script:find('Register') then return end
+    AddressList[description].active = (messageDialog('Load Checkbox States?', 3, 0, 1) == mrYes)
 end
 ---------------------------------------------------------------------------------------------------
-function Obj.log(...)
-    return Obj.isDebug and printf(...)
-end
+function Obj.log(...) return Obj.isDebug and print(...) end
 ---------------------------------------------------------------------------------------------------
 return Obj
+---------------------------------------------------------------------------------------------------
