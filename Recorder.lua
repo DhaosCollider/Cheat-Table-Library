@@ -29,13 +29,13 @@ end
 function Obj.getStaticAddress(startAddress, plusOffset)
     if not (targetIs64Bit() and getAddressSafe(startAddress)) then return '??' end
     local addr = getAddressSafe(startAddress)
-    local cap  = readInteger(addr, true) + 0x4
+    local cap  = readInteger(addr, true) + 0x04
     local offs = plusOffset and (plusOffset + cap) or cap
     return (addr and offs) and ('%X'):format((addr + offs)) or '??'
 end
 ---------------------------------------------------------------------------------------------------
 function Obj.createHeader(parent, description, address)
-    local mr = AddressList.createMemoryRecord()
+    local mr = getAddressList().createMemoryRecord()
     mr.appendToEntry(parent)
     mr.description = description or "Undefined"
     if address then mr.address = address; mr.isAddressGroupHeader = true end
@@ -46,7 +46,7 @@ function Obj.createHeader(parent, description, address)
 end
 ---------------------------------------------------------------------------------------------------
 function Obj.createChild(parent, description, address)
-    local mr = AddressList.createMemoryRecord()
+    local mr = getAddressList().createMemoryRecord()
     mr.appendToEntry(parent)
     mr.description = description or "Undefined"
     mr.address = address
@@ -75,9 +75,9 @@ end
 ---------------------------------------------------------------------------------------------------
 local function createMemberVariable(parent, member)
     if member.isStatic then return end
-    local isType = (0x01 < member.monotype) and (member.monotype < 0x0e)
+    local isType = (0x01 < member.monotype) and (member.monotype < 0x0E)
     if not isType then return end
-    local mr = AddressList.createMemoryRecord()
+    local mr = getAddressList().createMemoryRecord()
     mr.appendToEntry(parent)
     mr.description = member.name:match('^<(.+)>') or member.name
     mr.varType = monoTypeToVarType(member.monotype)
@@ -127,15 +127,8 @@ end
 ---------------------------------------------------------------------------------------------------
 function Obj.showDropdown(memrec, dropdown)
     local id, str = showSelectionList(memrec.description, '', dropdown.DropdownList)
-    if assert(not (id == -1)) then return str:match('^(.+):'), str:match(':(.+)$') end
-end
----------------------------------------------------------------------------------------------------
-function Obj.interlocking(memrec, target, timer)
-    if not (memrec or target or timer) then return end
-    local interlocking = function(timer)
-        if not target.active then memrec.active = false; return timer.destroy() end
-    end
-    return interlocking
+    if assert(-1 < id) then return str:match('^(.+):'), str:match(':(.+)$') end
 end
 ---------------------------------------------------------------------------------------------------
 return Obj
+---------------------------------------------------------------------------------------------------
